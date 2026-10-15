@@ -43,6 +43,16 @@ jobs:
           python -m pip install grpcio-tools==1.48.2
           if ($LASTEXITCODE -ne 0) { throw '安装 protobuf 生成器失败' }
 
+      - name: Prepare native pkg-config
+        shell: pwsh
+        run: |
+          # 固定的旧版 vcpkg 引用了已下架的 MSYS2 包；明确使用运行器上的原生工具。
+          & C:/msys64/usr/bin/pacman.exe -Sy --noconfirm --needed mingw-w64-x86_64-pkgconf
+          if ($LASTEXITCODE -ne 0) { throw '安装 pkg-config 失败' }
+          & C:/msys64/mingw64/bin/pkg-config.exe --version
+          if ($LASTEXITCODE -ne 0) { throw 'pkg-config 无法运行' }
+          'PKG_CONFIG=C:/msys64/mingw64/bin/pkg-config.exe' | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+
       - name: Build and verify the native driver
         shell: pwsh
         run: ./scripts/build-driver.ps1 -VcpkgRoot "${{ github.workspace }}/.build/vcpkg"

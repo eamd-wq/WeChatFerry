@@ -40,6 +40,11 @@ $dumpbin = Join-Path $compilerRoot.FullName 'bin/Hostx64/x64/dumpbin.exe'
 
 $env:VCPKG_ROOT = $VcpkgRoot
 $env:VCPKG_OVERLAY_TRIPLETS = Join-Path $PSScriptRoot 'triplets'
+if (-not $env:PKG_CONFIG -or -not (Test-Path -LiteralPath $env:PKG_CONFIG -PathType Leaf)) {
+    throw '请通过 PKG_CONFIG 指定可运行的原生 pkg-config.exe'
+}
+$pkgConfigVersion = (& $env:PKG_CONFIG --version).Trim()
+if ($LASTEXITCODE -ne 0) { throw 'pkg-config 无法运行' }
 if ($env:VCPKG_DEFAULT_BINARY_CACHE) {
     New-Item -ItemType Directory -Path $env:VCPKG_DEFAULT_BINARY_CACHE -Force | Out-Null
 }
@@ -48,8 +53,8 @@ Invoke-Checked (Join-Path $VcpkgRoot 'vcpkg.exe') @('integrate', 'install')
 
 Push-Location (Join-Path $repoRoot 'WeChatFerry')
 try {
-    Invoke-Checked (Join-Path $VcpkgRoot 'vcpkg.exe') @('install', '--triplet', 'x64-windows-static', "--overlay-triplets=$env:VCPKG_OVERLAY_TRIPLETS")
-    Invoke-Checked 'msbuild' @('WeChatFerry.sln', '/m', '/p:Configuration=Release', '/p:Platform=x64', '/p:PlatformToolset=v142', '/p:WindowsTargetPlatformVersion=10.0.19041.0', '/p:VcpkgTriplet=x64-windows-static', '/p:VcpkgEnableManifest=true', '/verbosity:minimal')
+    Invoke-Checked (Join-Path $VcpkgRoot 'vcpkg.exe') @('install', '--triplet', 'x64-windows-static', '--host-triplet', 'x64-windows-static', "--overlay-triplets=$env:VCPKG_OVERLAY_TRIPLETS")
+    Invoke-Checked 'msbuild' @('WeChatFerry.sln', '/m', '/p:Configuration=Release', '/p:Platform=x64', '/p:PlatformToolset=v142', '/p:WindowsTargetPlatformVersion=10.0.19041.0', '/p:VcpkgTriplet=x64-windows-static', '/p:VcpkgHostTriplet=x64-windows-static', '/p:VcpkgEnableManifest=true', '/verbosity:minimal')
 } finally {
     Pop-Location
 }
@@ -88,6 +93,7 @@ $manifest = [ordered]@{
     sourceCommit = $sourceCommit
     vcpkgCommit = $vcpkgRevision
     platformToolset = 'v142'
+    pkgConfigVersion = $pkgConfigVersion
     files = $files
     liveWechatTestPerformed = $false
 }
