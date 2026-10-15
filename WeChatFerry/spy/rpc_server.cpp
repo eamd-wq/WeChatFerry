@@ -1,4 +1,4 @@
-﻿#pragma warning(disable : 4251)
+#pragma warning(disable : 4251)
 
 #include <chrono>
 #include <condition_variable>
@@ -283,8 +283,8 @@ bool func_send_file(char *path, char *receiver, uint8_t *out, size_t *len)
         LOG_ERROR("Path does not exists: {}", path);
         rsp.msg.status = -2;
     } else {
-        SendFileMessage(receiver, path);
-        rsp.msg.status = 0;
+        // 内存分配失败必须返回错误状态，不能把未执行的发送记为成功。
+        rsp.msg.status = SendFileMessage(receiver, path);
     }
 
     pb_ostream_t stream = pb_ostream_from_buffer(out, *len);

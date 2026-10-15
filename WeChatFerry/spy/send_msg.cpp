@@ -1,7 +1,8 @@
-﻿
+
 #include "framework.h"
 #include <sstream>
 #include <vector>
+#include <new>
 
 #include "exec_sql.h"
 #include "log.h"
@@ -114,28 +115,62 @@ void SendImageMessage(string wxid, string path)
     funcFree(pMsgTmp);
 }
 
-void SendFileMessage(string wxid, string path)
+namespace {
+// 文件发送会消费并清空 WxString；缓冲区必须独立分配，不能借用 std::wstring::c_str()。
+class OwnedFileString {
+public:
+    WxString value;
+
+    OwnedFileString() = default;
+    OwnedFileString(const OwnedFileString &) = delete;
+    OwnedFileString &operator=(const OwnedFileString &) = delete;
+
+    bool assign(const wstring &text)
+    {
+        if (text.size() > MAXDWORD || text.size() > (SIZE_MAX / sizeof(wchar_t)) - 1) return false;
+        auto buffer = static_cast<wchar_t *>(HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, (text.size() + 1) * sizeof(wchar_t)));
+        if (!buffer) return false;
+        wmemcpy(buffer, text.c_str(), text.size() + 1);
+        value.wptr     = buffer;
+        value.size     = static_cast<DWORD>(text.size());
+        value.capacity = static_cast<DWORD>(text.size());
+        return true;
+    }
+
+    ~OwnedFileString()
+    {
+        // 微信已消费时 value.wptr 为 nullptr；提前失败时只回收尚未移交的缓冲区。
+        if (value.wptr) HeapFree(GetProcessHeap(), 0, const_cast<wchar_t *>(value.wptr));
+    }
+};
+} // namespace
+
+int SendFileMessage(string wxid, string path)
 {
-    wstring wsWxid = String2Wstring(wxid);
-    wstring wsPath = String2Wstring(path);
+    try {
+        OwnedFileString wxWxid;
+        OwnedFileString wxPath;
+        if (!wxWxid.assign(String2Wstring(wxid)) || !wxPath.assign(String2Wstring(path))) return -3;
 
-    WxString wxWxid(wsWxid);
-    WxString wxPath(wsPath);
+        New_t funcNew                 = (New_t)(g_WeChatWinDllAddr + OS_NEW);
+        Free_t funcFree               = (Free_t)(g_WeChatWinDllAddr + OS_FREE);
+        GetAppMsgMgr_t funcGetAppMgr  = (GetAppMsgMgr_t)(g_WeChatWinDllAddr + OS_GET_APP_MSG_MGR);
+        SendFileMsg_t funcSendFile    = (SendFileMsg_t)(g_WeChatWinDllAddr + OS_SEND_FILE);
 
-    New_t funcNew                   = (New_t)(g_WeChatWinDllAddr + OS_NEW);
-    Free_t funcFree                 = (Free_t)(g_WeChatWinDllAddr + OS_FREE);
-    GetAppMsgMgr_t funcGetAppMsgMgr = (GetAppMsgMgr_t)(g_WeChatWinDllAddr + OS_GET_APP_MSG_MGR);
-    SendFileMsg_t funcSendFile      = (SendFileMsg_t)(g_WeChatWinDllAddr + OS_SEND_FILE);
+        char msg[0x460] = { 0 };
+        QWORD tmp1[4]   = { 0 };
+        QWORD tmp2[4]   = { 0 };
+        QWORD tmp3[4]   = { 0 };
 
-    char msg[0x460] = { 0 };
-    QWORD tmp1[4]   = { 0 };
-    QWORD tmp2[4]   = { 0 };
-    QWORD tmp3[4]   = { 0 };
-
-    QWORD pMsg   = funcNew((QWORD)(&msg));
-    QWORD appMgr = funcGetAppMsgMgr();
-    funcSendFile(appMgr, pMsg, (QWORD)(&wxWxid), (QWORD)(&wxPath), 1, tmp1, 0, tmp2, 0, tmp3, 0, 0);
-    funcFree(pMsg);
+        QWORD pMsg   = funcNew((QWORD)(&msg));
+        QWORD appMgr = funcGetAppMgr();
+        // 保留 3.9.11.25 的偏移和调用参数；只修正传入字符串的归属。
+        funcSendFile(appMgr, pMsg, (QWORD)(&wxWxid.value), (QWORD)(&wxPath.value), 1, tmp1, 0, tmp2, 0, tmp3, 0, 0);
+        funcFree(pMsg);
+        return 0;
+    } catch (const std::bad_alloc &) {
+        return -3;
+    }
 }
 
 int SendRichTextMessage(RichText_t &rt)

@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 
 #include <string>
 
@@ -16,7 +16,7 @@ typedef struct {
 
 void SendTextMessage(string wxid, string msg, string atWxids);
 void SendImageMessage(string wxid, string path);
-void SendFileMessage(string wxid, string path);
+int SendFileMessage(string wxid, string path);
 void SendXmlMessage(string receiver, string xml, string path, uint64_t type);
 void SendEmotionMessage(string wxid, string path);
 int SendRichTextMessage(RichText_t &rt);

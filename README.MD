@@ -1,5 +1,7 @@
 # WeChatFerry
 
+本分支是基于上游 **v39.3.3** 的文件发送修复版，适配 **Windows 微信 3.9.11.25 x64**。修复文件发送参数重复释放导致的进程崩溃，保留原版本校验及微信函数偏移。源码修复和版本核对已完成；完整 DLL 构建及真实微信发送尚未验收。详见 [修复与版本匹配说明](docs/send-file-ownership-39.3.3.md)。
+
 一个玩微信的工具。更多介绍见：[WeChatFerry: 一个玩微信的工具](https://mp.weixin.qq.com/s/CGLfSaNDy8MyuyPWGjGJ7w)。
 
 <details><summary><font color="red" size="12">免责声明【必读】</font></summary>
