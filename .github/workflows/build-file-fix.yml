@@ -11,7 +11,7 @@ jobs:
     runs-on: windows-2022
     timeout-minutes: 45
     env:
-      VCPKG_DEFAULT_BINARY_CACHE: ${{ runner.temp }}/wcf-vcpkg-cache
+      VCPKG_DEFAULT_BINARY_CACHE: C:/wcf-vcpkg-cache
     steps:
       - name: Checkout source
         uses: actions/checkout@v4
