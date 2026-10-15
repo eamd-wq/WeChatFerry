@@ -1,0 +1,56 @@
+name: Build file-send fix for WeChat 3.9.11.25
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: windows-2022
+    timeout-minutes: 45
+    env:
+      VCPKG_DEFAULT_BINARY_CACHE: ${{ runner.temp }}/wcf-vcpkg-cache
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Checkout pinned vcpkg
+        uses: actions/checkout@v4
+        with:
+          repository: microsoft/vcpkg
+          ref: 10b7a178346f3f0abef60cecd5130e295afd8da4
+          path: .build/vcpkg
+
+      - name: Set up MSBuild
+        uses: microsoft/setup-msbuild@v2
+
+      - name: Set up Python for the bundled nanopb generator
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.9'
+
+      - name: Restore native dependency cache
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.VCPKG_DEFAULT_BINARY_CACHE }}
+          key: wcf-v142-windows2022-10b7a178-${{ hashFiles('WeChatFerry/vcpkg.json', 'scripts/triplets/*.cmake') }}
+
+      - name: Prepare protobuf generator
+        shell: pwsh
+        run: |
+          python -m pip install grpcio-tools==1.48.2
+          if ($LASTEXITCODE -ne 0) { throw '安装 protobuf 生成器失败' }
+
+      - name: Build and verify the native driver
+        shell: pwsh
+        run: ./scripts/build-driver.ps1 -VcpkgRoot "${{ github.workspace }}/.build/vcpkg"
+
+      - name: Upload verified DLLs and manifest
+        uses: actions/upload-artifact@v4
+        with:
+          name: WeChatFerry-39.3.3.1-WeChat-3.9.11.25-x64
+          path: artifacts/WeChatFerry-39.3.3.1-WeChat-3.9.11.25-x64/*
+          if-no-files-found: error
+          retention-days: 30

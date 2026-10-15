@@ -18,6 +18,7 @@ Out/
 *.dll
 *.exe
 build/
+/artifacts/
 logs/
 java/wcferry/bin/
 vcpkg_installed/

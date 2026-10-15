@@ -1,0 +1,5 @@
+set(VCPKG_TARGET_ARCHITECTURE x64)
+set(VCPKG_CRT_LINKAGE static)
+set(VCPKG_LIBRARY_LINKAGE static)
+# 与现有 Codec.lib 及上游工程保持同一 MSVC 工具集，避免混用 LTCG 对象。
+set(VCPKG_PLATFORM_TOOLSET v142)
